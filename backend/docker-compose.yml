@@ -1,0 +1,15 @@
+services:
+  backend:
+    build:
+      context: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./app.db
+      - DATA_DIR=/data
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+      - AUTH_DISABLED=true
+    volumes:
+      - ./data:/data
+      - ./app.db:/app/app.db
+
