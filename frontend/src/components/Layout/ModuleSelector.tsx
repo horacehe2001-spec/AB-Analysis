@@ -73,7 +73,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({ onHypothesisClick, onSp
               },
             }}
           >
-            {React.cloneElement(mod.icon, { sx: { color: '#00e676' } })}
+            {React.cloneElement(mod.icon as React.ReactElement<any>, { sx: { color: '#00e676' } })}
             <Typography
               variant="caption"
               sx={{

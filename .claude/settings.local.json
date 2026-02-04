@@ -1,9 +1,23 @@
 {
   "permissions": {
     "allow": [
-      "Bash(gh auth:*)",
-      "Bash(gh repo view:*)",
-      "Bash(git add:*)"
+      "Bash(npx tsc:*)",
+      "Bash(\"D:\\\\AB\\\\backend\\\\.venv\\\\Scripts\\\\python.exe\" -m uvicorn:*)",
+      "Bash(\"D:\\\\AB\\\\backend\\\\.venv\\\\Scripts\\\\python.exe\":*)",
+      "Bash(\"D:\\\\AB\\\\backend\\\\.venv\\\\Scripts\\\\python.exe\" -c:*)",
+      "Bash(curl:*)",
+      "Bash(npm install react-markdown)",
+      "Bash(npm run build:*)",
+      "Bash(dir:*)",
+      "Bash(python:*)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git config:*)",
+      "Bash(gh api:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: 统计分析平台 v3.0\n\n- 假设检验模块：9种统计方法，6步分析流程\n- SPC控制图模块：7种图型，8条西联规则，5步分析流程\n- LLM智能辅助：支持OpenAI/Claude/智谱/通义千问\n- 报告导出：Markdown\\(ZIP+PNG\\) / Word\n- 会话管理、历史记录、系统配置\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(gh repo create:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }

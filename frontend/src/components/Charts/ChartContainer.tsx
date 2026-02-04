@@ -285,10 +285,6 @@ function getChartOption(config: ChartConfig): echarts.EChartsOption {
       const chartType = chartData?.chart_type ?? '';
 
       const xData = points.map((p: any) => p.x);
-      const yData = points.map((p: any) => p.y);
-      const normalPoints = points
-        .filter((p: any) => !p.is_anomaly)
-        .map((p: any) => [p.x, p.y]);
       const anomalyPoints = points
         .filter((p: any) => p.is_anomaly)
         .map((p: any) => [p.x, p.y]);
