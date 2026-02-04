@@ -101,7 +101,7 @@ def generate_conclusion(req: ConclusionRequest, db: Session = Depends(get_db)) -
     )
 
     try:
-        cfg_dict = {**llm_config, "max_tokens": max(int(llm_config.get("max_tokens", 2048)), 2048)}
+        cfg_dict = {**llm_config, "max_tokens": max(int(llm_config.get("max_tokens", 4096)), 4096)}
         cfg = LLMModelConfig(**cfg_dict)
         conclusion = call_llm_json(config=cfg, system_prompt=system_prompt, user_prompt=user_prompt).strip()
         if req.session_id:

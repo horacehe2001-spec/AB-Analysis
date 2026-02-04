@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -9,30 +9,41 @@ import {
   Chip,
   Typography,
   IconButton,
+  TextField,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Science as ScienceIcon,
 } from '@mui/icons-material';
 
-export type PickerMode = 'hypothesis' | 'spc';
+export type PickerMode = 'hypothesis' | 'spc' | 'capability';
+
+interface ColumnStats {
+  mean: number;
+  std: number;
+  min: number;
+  max: number;
+}
 
 interface VariablePickerDialogProps {
   open: boolean;
   onClose: () => void;
   columns: string[];
-  onConfirm: (yVariable: string, xVariables: string[]) => void;
+  onConfirm: (yVariable: string, xVariables: string[], specLimits?: { usl: number; lsl: number }) => void;
   mode?: PickerMode;
+  columnStats?: Record<string, ColumnStats>;
 }
 
 const modeTitles: Record<PickerMode, string> = {
   hypothesis: '选择分析变量',
   spc: '选择 SPC 分析变量',
+  capability: '选择流程能力分析变量',
 };
 
 const modeYLabels: Record<PickerMode, string> = {
   hypothesis: 'Y（因变量）— 拖入 1 个字段',
   spc: 'Y（监控指标）— 拖入 1 个字段',
+  capability: 'Y（质量特性）— 拖入 1 个字段',
 };
 
 const VariablePickerDialog: React.FC<VariablePickerDialogProps> = ({
@@ -41,10 +52,13 @@ const VariablePickerDialog: React.FC<VariablePickerDialogProps> = ({
   columns,
   onConfirm,
   mode = 'hypothesis',
+  columnStats,
 }) => {
   const [yVariable, setYVariable] = useState<string | null>(null);
   const [xVariables, setXVariables] = useState<string[]>([]);
   const [dragOverZone, setDragOverZone] = useState<'x' | 'y' | null>(null);
+  const [usl, setUsl] = useState<string>('');
+  const [lsl, setLsl] = useState<string>('');
 
   const selectedFields = new Set([yVariable, ...xVariables].filter(Boolean));
 
@@ -57,6 +71,17 @@ const VariablePickerDialog: React.FC<VariablePickerDialogProps> = ({
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
+
+  // Auto-fill USL/LSL when Y variable changes in capability mode
+  useEffect(() => {
+    if (mode === 'capability' && yVariable && columnStats?.[yVariable]) {
+      const stats = columnStats[yVariable];
+      const recommendedUsl = stats.mean + 3 * stats.std;
+      const recommendedLsl = stats.mean - 3 * stats.std;
+      setUsl(recommendedUsl.toFixed(4));
+      setLsl(recommendedLsl.toFixed(4));
+    }
+  }, [mode, yVariable, columnStats]);
 
   const handleDropY = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -85,21 +110,37 @@ const VariablePickerDialog: React.FC<VariablePickerDialogProps> = ({
   const handleRemoveY = () => setYVariable(null);
   const handleRemoveX = (col: string) => setXVariables((prev) => prev.filter((v) => v !== col));
 
+  const uslNum = parseFloat(usl);
+  const lslNum = parseFloat(lsl);
+  const specLimitsValid = mode === 'capability'
+    ? usl !== '' && lsl !== '' && !isNaN(uslNum) && !isNaN(lslNum) && uslNum > lslNum
+    : true;
+
   const canConfirm = mode === 'spc'
     ? yVariable !== null
-    : yVariable !== null && xVariables.length >= 1;
+    : mode === 'capability'
+      ? yVariable !== null && specLimitsValid
+      : yVariable !== null && xVariables.length >= 1;
 
   const handleConfirm = () => {
     if (canConfirm) {
-      onConfirm(yVariable!, xVariables);
+      if (mode === 'capability') {
+        onConfirm(yVariable!, xVariables, { usl: uslNum, lsl: lslNum });
+      } else {
+        onConfirm(yVariable!, xVariables);
+      }
       setYVariable(null);
       setXVariables([]);
+      setUsl('');
+      setLsl('');
     }
   };
 
   const handleClose = () => {
     setYVariable(null);
     setXVariables([]);
+    setUsl('');
+    setLsl('');
     onClose();
   };
 
@@ -231,7 +272,7 @@ const VariablePickerDialog: React.FC<VariablePickerDialogProps> = ({
         </Box>
 
         {/* X Drop Zone (hypothesis mode only) */}
-        {mode !== 'spc' && (
+        {mode === 'hypothesis' && (
           <>
             <Typography variant="subtitle2" sx={{ color: '#42a5f5', mb: 1, mt: 2 }}>
               X（自变量）— 拖入最多 3 个字段
@@ -265,6 +306,73 @@ const VariablePickerDialog: React.FC<VariablePickerDialogProps> = ({
               )}
             </Box>
           </>
+        )}
+
+        {/* USL / LSL inputs (capability mode only) */}
+        {mode === 'capability' && (
+          <Box sx={{ mt: 2.5 }}>
+            <Typography variant="subtitle2" sx={{ color: '#42a5f5', mb: 1.5 }}>
+              规格限（Specification Limits）
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                label="USL（上规格限）"
+                value={usl}
+                onChange={(e) => setUsl(e.target.value)}
+                type="number"
+                size="small"
+                fullWidth
+                InputLabelProps={{ sx: { color: '#80cbc4' } }}
+                InputProps={{
+                  sx: {
+                    color: '#e0f2f1',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(128, 203, 196, 0.3)',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(0, 230, 118, 0.5)',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#00e676',
+                    },
+                  },
+                }}
+              />
+              <TextField
+                label="LSL（下规格限）"
+                value={lsl}
+                onChange={(e) => setLsl(e.target.value)}
+                type="number"
+                size="small"
+                fullWidth
+                InputLabelProps={{ sx: { color: '#80cbc4' } }}
+                InputProps={{
+                  sx: {
+                    color: '#e0f2f1',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(128, 203, 196, 0.3)',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(0, 230, 118, 0.5)',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#00e676',
+                    },
+                  },
+                }}
+              />
+            </Box>
+            {usl !== '' && lsl !== '' && !isNaN(uslNum) && !isNaN(lslNum) && uslNum <= lslNum && (
+              <Typography variant="caption" sx={{ color: '#e74c3c', mt: 0.5, display: 'block' }}>
+                USL 必须大于 LSL
+              </Typography>
+            )}
+            {yVariable && columnStats?.[yVariable] && (
+              <Typography variant="caption" sx={{ color: '#546e7a', mt: 0.5, display: 'block' }}>
+                推荐值基于 μ ± 3σ（均值 {columnStats[yVariable].mean.toFixed(4)}，标准差 {columnStats[yVariable].std.toFixed(4)}），请根据实际工艺规格调整
+              </Typography>
+            )}
+          </Box>
         )}
       </DialogContent>
 

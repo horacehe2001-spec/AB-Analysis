@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ModuleType = 'hypothesis' | 'capability' | 'stability' | 'spc';
+export type ModuleType = 'hypothesis' | 'capability' | 'spc';
 
 interface AppStore {
   activeModule: ModuleType;

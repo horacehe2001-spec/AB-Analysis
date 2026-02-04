@@ -9,7 +9,7 @@ interface ChartContainerProps {
 }
 
 const ChartContainer: React.FC<ChartContainerProps> = ({ config, height: heightProp }) => {
-  const height = heightProp ?? (config.type === 'control_chart' ? 400 : 300);
+  const height = heightProp ?? (config.type === 'control_chart' || config.type === 'distribution' ? 400 : 300);
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
@@ -154,8 +154,103 @@ function getChartOption(config: ChartConfig): echarts.EChartsOption {
     }
 
     case 'distribution': {
-      const bins = (config.data as any)?.bins;
-      const counts = (config.data as any)?.counts;
+      const d = config.data as any;
+
+      // Capability analysis format: histogram + normal_curve + USL/LSL
+      if (Array.isArray(d?.histogram) && d.histogram.length > 0 && d.histogram[0].bin_start !== undefined) {
+        const histogram = d.histogram as { bin_start: number; bin_end: number; count: number }[];
+        const normalCurve = Array.isArray(d.normal_curve) ? d.normal_curve as { x: number; y: number }[] : [];
+        const uslVal = d.usl as number | undefined;
+        const lslVal = d.lsl as number | undefined;
+        const meanVal = d.mean as number | undefined;
+
+        // Build histogram bar data using actual value axis
+        const binWidth = histogram.length > 0 ? histogram[0].bin_end - histogram[0].bin_start : 1;
+        const maxCount = Math.max(...histogram.map((h) => h.count));
+
+        // Scale normal curve to match histogram height
+        const maxPdf = normalCurve.length > 0 ? Math.max(...normalCurve.map((p) => p.y)) : 1;
+        const scaleFactor = maxPdf > 0 ? maxCount / maxPdf : 1;
+
+        const barData = histogram.map((h) => [
+          (h.bin_start + h.bin_end) / 2,
+          h.count,
+        ]);
+
+        const curveData = normalCurve.map((p) => [p.x, p.y * scaleFactor]);
+
+        const series: any[] = [
+          {
+            name: '频次',
+            type: 'bar',
+            data: barData,
+            barWidth: `${Math.max(binWidth * 0.9, 1)}`,
+            itemStyle: {
+              color: 'rgba(158, 158, 158, 0.6)',
+              borderColor: 'rgba(120, 120, 120, 0.8)',
+              borderWidth: 1,
+            },
+            z: 1,
+          },
+          {
+            name: '正态拟合',
+            type: 'line',
+            data: curveData,
+            smooth: true,
+            symbol: 'none',
+            lineStyle: { color: '#e74c3c', width: 2, type: 'dashed' },
+            z: 5,
+          },
+        ];
+
+        const markLines: any[] = [];
+        if (uslVal !== undefined) {
+          markLines.push({
+            xAxis: uslVal,
+            label: { formatter: `USL\n${uslVal.toFixed(2)}`, position: 'end', color: '#e74c3c' },
+            lineStyle: { color: '#e74c3c', type: 'dashed', width: 2 },
+          });
+        }
+        if (lslVal !== undefined) {
+          markLines.push({
+            xAxis: lslVal,
+            label: { formatter: `LSL\n${lslVal.toFixed(2)}`, position: 'end', color: '#e74c3c' },
+            lineStyle: { color: '#e74c3c', type: 'dashed', width: 2 },
+          });
+        }
+        if (meanVal !== undefined) {
+          markLines.push({
+            xAxis: meanVal,
+            label: { formatter: `μ\n${meanVal.toFixed(2)}`, position: 'end', color: '#2ecc71' },
+            lineStyle: { color: '#2ecc71', type: 'solid', width: 2 },
+          });
+        }
+
+        if (markLines.length > 0) {
+          series[0].markLine = {
+            symbol: 'none',
+            data: markLines,
+            animation: false,
+          };
+        }
+
+        return {
+          ...baseOption,
+          tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+          },
+          legend: { top: 0, data: ['频次', '正态拟合'] },
+          grid: { left: '10%', right: '10%', bottom: '12%', top: '15%' },
+          xAxis: { type: 'value', name: config.xLabel || '值', scale: true },
+          yAxis: { type: 'value', name: '频次' },
+          series,
+        };
+      }
+
+      // Legacy format: bins + counts
+      const bins = d?.bins;
+      const counts = d?.counts;
       if (Array.isArray(bins) && Array.isArray(counts)) {
         const labels = bins.map((b: any) => Array.isArray(b) ? `${b[0]}-${b[1]}` : String(b));
         return {
@@ -171,11 +266,11 @@ function getChartOption(config: ChartConfig): echarts.EChartsOption {
       }
       return {
         ...baseOption,
-        xAxis: { type: 'category', data: (config.data as any).bins || [] },
+        xAxis: { type: 'category', data: d?.bins || [] },
         yAxis: { type: 'value' },
         series: [{
           type: 'bar',
-          data: (config.data as any).counts || [],
+          data: d?.counts || [],
           itemStyle: { borderRadius: [4, 4, 0, 0] },
         }],
       };

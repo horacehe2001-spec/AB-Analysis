@@ -9,9 +9,8 @@ import SpcSteps from '../components/Analysis/SpcSteps';
 import ConclusionPanel from '../components/Analysis/ConclusionPanel';
 import MessageList from '../components/Chat/MessageList';
 import ExportButton from '../components/Export/ExportButton';
-import CapabilityPage from './CapabilityPage';
-import StabilityPage from './StabilityPage';
-import SpcPage from './SpcPage';
+import CapabilityProgress from '../components/Analysis/CapabilityProgress';
+import CapabilitySteps from '../components/Analysis/CapabilitySteps';
 import { useSessionStore } from '../store/sessionStore';
 import { useChatStore } from '../store/chatStore';
 import { useAppStore } from '../store/appStore';
@@ -371,14 +370,85 @@ const Home: React.FC = () => {
     </Box>
   );
 
+  const renderCapabilityContent = () => (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 2 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h5" sx={{ color: '#e0f2f1' }}>
+          流程能力分析结果
+        </Typography>
+        {sessionId && (
+          <ExportButton sessionId={sessionId} disabled={!hasAnalysis || isLoading} />
+        )}
+      </Box>
+
+      {latestAnalysis ? (
+        <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+          <CapabilityProgress activeStep={5} isLoading={false} />
+          <CapabilitySteps result={latestAnalysis} dataSummary={dataSummary} />
+
+          <Divider sx={{ my: 2, borderColor: 'rgba(255, 171, 64, 0.2)' }} />
+          <ConclusionPanel
+            conclusion={conclusion}
+            isLoading={isConclusionLoading}
+            onGenerate={handleGenerateConclusion}
+          />
+        </Box>
+      ) : isLoading ? (
+        <Box sx={{ flexGrow: 1 }}>
+          <CapabilityProgress activeStep={2} isLoading />
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 8 }}>
+            <Typography sx={{ color: '#80cbc4' }}>正在进行流程能力分析，请稍候...</Typography>
+          </Box>
+        </Box>
+      ) : (
+        <Box sx={{ flexGrow: 1 }}>
+          <Box sx={{ maxHeight: '60vh', overflow: 'auto' }}>
+            <MessageList messages={messages} isLoading={isLoading} />
+          </Box>
+        </Box>
+      )}
+
+      {/* Follow-up buttons */}
+      {hasAnalysis && (
+        <Box sx={{
+          display: 'flex',
+          gap: 1,
+          flexWrap: 'wrap',
+          pt: 1.5,
+          borderTop: '1px solid rgba(0, 230, 118, 0.12)',
+        }}>
+          <Typography variant="body2" sx={{ alignSelf: 'center', mr: 1, color: '#80cbc4' }}>
+            继续追问:
+          </Typography>
+          {QUICK_FOLLOW_UPS.map((text) => (
+            <Chip
+              key={text}
+              label={text}
+              onClick={() => handleFollowUp(text)}
+              disabled={isLoading}
+              variant="outlined"
+              color="primary"
+              sx={{
+                cursor: 'pointer',
+                '&:hover': {
+                  bgcolor: 'rgba(0, 230, 118, 0.12)',
+                  boxShadow: '0 0 8px rgba(0, 230, 118, 0.2)',
+                },
+              }}
+            />
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+
   const renderModuleContent = () => {
     switch (activeModule) {
       case 'hypothesis':
         return renderHypothesisContent();
       case 'capability':
-        return <CapabilityPage />;
-      case 'stability':
-        return <StabilityPage />;
+        return renderCapabilityContent();
       case 'spc':
         return renderSpcContent();
       default:

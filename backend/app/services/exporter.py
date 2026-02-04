@@ -73,7 +73,7 @@ def _generate_llm_conclusion(
         )
         user_prompt = f"{data_info}\n\n分析结果：\n" + "\n".join(summaries) + "\n\n请撰写分析结论。"
 
-        cfg_dict = {**llm_config, "max_tokens": max(int(llm_config.get("max_tokens", 2048)), 2048)}
+        cfg_dict = {**llm_config, "max_tokens": max(int(llm_config.get("max_tokens", 4096)), 4096)}
         cfg = LLMModelConfig(**cfg_dict)
         return call_llm_json(config=cfg, system_prompt=system_prompt, user_prompt=user_prompt).strip()
     except Exception as e:

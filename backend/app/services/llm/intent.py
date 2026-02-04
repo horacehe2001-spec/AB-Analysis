@@ -13,6 +13,8 @@ class Intent:
     y: str | None = None
     group: str | None = None
     alpha: float = 0.05
+    usl: float | None = None
+    lsl: float | None = None
 
 
 _JSON_RE = re.compile(r"\{.*\}", re.DOTALL)

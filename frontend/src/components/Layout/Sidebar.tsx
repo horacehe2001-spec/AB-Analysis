@@ -42,10 +42,58 @@ const Sidebar: React.FC = () => {
     }
   }, [dataSummary]);
 
-  const handleVariableConfirm = useCallback(async (yVariable: string, xVariables: string[]) => {
+  const handleCapabilityClick = useCallback(() => {
+    if (dataSummary) {
+      setPickerMode('capability');
+      setVariablePickerOpen(true);
+    }
+  }, [dataSummary]);
+
+  const handleVariableConfirm = useCallback(async (yVariable: string, xVariables: string[], specLimits?: { usl: number; lsl: number }) => {
     setVariablePickerOpen(false);
     const currentMode = pickerMode;
     const { sessionId, addMessage, addMultiAnalysisResult, clearMultiAnalysisResults, setError } = useChatStore.getState();
+
+    if (currentMode === 'capability') {
+      const userMsg = {
+        id: Date.now().toString(),
+        role: 'user' as const,
+        content: `流程能力分析：Y = ${yVariable}，USL = ${specLimits?.usl}，LSL = ${specLimits?.lsl}`,
+        timestamp: new Date(),
+      };
+      addMessage(userMsg);
+
+      try {
+        const jsonMsg = JSON.stringify({ task: 'capability', y: yVariable, usl: specLimits?.usl, lsl: specLimits?.lsl });
+        const response = await chatApi.sendMessage({
+          session_id: sessionId || undefined,
+          message: jsonMsg,
+        });
+
+        if (!sessionId && response.session_id) {
+          useChatStore.getState().setSessionId(response.session_id);
+        }
+
+        const aiMsg = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant' as const,
+          content: response.reply,
+          timestamp: new Date(),
+          analysis: response.analysis,
+        };
+        addMessage(aiMsg);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '流程能力分析失败';
+        setError(errorMessage);
+        addMessage({
+          id: (Date.now() + 1).toString(),
+          role: 'assistant' as const,
+          content: `分析出错: ${errorMessage}`,
+          timestamp: new Date(),
+        });
+      }
+      return;
+    }
 
     if (currentMode === 'spc') {
       // SPC mode: single Y variable, send as spc task
@@ -143,7 +191,7 @@ const Sidebar: React.FC = () => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Module Selector */}
-      <ModuleSelector onHypothesisClick={handleHypothesisClick} onSpcClick={handleSpcClick} />
+      <ModuleSelector onHypothesisClick={handleHypothesisClick} onSpcClick={handleSpcClick} onCapabilityClick={handleCapabilityClick} />
 
       <Divider />
 
@@ -218,6 +266,7 @@ const Sidebar: React.FC = () => {
         columns={dataSummary?.column_names ?? []}
         onConfirm={handleVariableConfirm}
         mode={pickerMode}
+        columnStats={dataSummary?.column_stats}
       />
     </Box>
   );

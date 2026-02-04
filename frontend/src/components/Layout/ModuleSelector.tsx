@@ -3,24 +3,23 @@ import { Box, ButtonBase, Typography } from '@mui/material';
 import {
   Science as ScienceIcon,
   Speed as SpeedIcon,
-  Timeline as TimelineIcon,
   Insights as InsightsIcon,
 } from '@mui/icons-material';
 import { useAppStore, type ModuleType } from '../../store/appStore';
 
 const modules: { key: ModuleType; label: string; icon: React.ReactElement }[] = [
-  { key: 'hypothesis', label: '影响因子', icon: <ScienceIcon fontSize="small" /> },
-  { key: 'capability', label: '流程能力', icon: <SpeedIcon fontSize="small" /> },
-  { key: 'stability', label: '流程稳定性', icon: <TimelineIcon fontSize="small" /> },
-  { key: 'spc', label: 'SPC 分析', icon: <InsightsIcon fontSize="small" /> },
+  { key: 'hypothesis', label: '影响因子分析', icon: <ScienceIcon fontSize="small" /> },
+  { key: 'spc', label: 'SPC/稳定性分析', icon: <InsightsIcon fontSize="small" /> },
+  { key: 'capability', label: '流程能力CP/CPK', icon: <SpeedIcon fontSize="small" /> },
 ];
 
 interface ModuleSelectorProps {
   onHypothesisClick?: () => void;
   onSpcClick?: () => void;
+  onCapabilityClick?: () => void;
 }
 
-const ModuleSelector: React.FC<ModuleSelectorProps> = ({ onHypothesisClick, onSpcClick }) => {
+const ModuleSelector: React.FC<ModuleSelectorProps> = ({ onHypothesisClick, onSpcClick, onCapabilityClick }) => {
   const { activeModule, setActiveModule } = useAppStore();
 
   return (
@@ -45,6 +44,9 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({ onHypothesisClick, onSp
               if (mod.key === 'spc' && onSpcClick) {
                 onSpcClick();
               }
+              if (mod.key === 'capability' && onCapabilityClick) {
+                onCapabilityClick();
+              }
             }}
             sx={{
               display: 'flex',
@@ -54,6 +56,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({ onHypothesisClick, onSp
               py: 1.2,
               px: 1,
               borderRadius: 1.5,
+              ...(mod.key === 'capability' && { gridColumn: 'span 2' }),
               border: isActive
                 ? '1.5px solid #00e676'
                 : '1px solid rgba(128, 203, 196, 0.25)',

@@ -46,7 +46,7 @@ export const exportApi = {
    */
   generateConclusion: async (data: ConclusionRequest): Promise<ConclusionResponse> => {
     return apiClient.post<ConclusionResponse, ConclusionResponse>('/api/v2/report/conclusion', data, {
-      timeout: 120000,
+      timeout: 300000,
     });
   },
 };

@@ -28,11 +28,19 @@ export interface SessionDetail extends Session {
   report_conclusion?: string | null;
 }
 
+export interface ColumnStats {
+  mean: number;
+  std: number;
+  min: number;
+  max: number;
+}
+
 export interface DataSummary {
   rows: number;
   columns: number;
   column_names: string[];
   column_types: Record<string, string>;
+  column_stats?: Record<string, ColumnStats>;
 }
 
 export interface SessionsQuery {

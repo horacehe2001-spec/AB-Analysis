@@ -3,11 +3,19 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class ColumnStats(BaseModel):
+    mean: float
+    std: float
+    min: float
+    max: float
+
+
 class DataSummary(BaseModel):
     rows: int
     columns: int
     column_names: list[str]
     column_types: dict[str, str]
+    column_stats: dict[str, ColumnStats] = Field(default_factory=dict)
 
 
 class Session(BaseModel):

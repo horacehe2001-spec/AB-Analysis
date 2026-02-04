@@ -149,6 +149,8 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
                     y=msg_obj.get("y"),
                     group=msg_obj.get("group"),
                     alpha=float(msg_obj.get("alpha", 0.05)),
+                    usl=float(msg_obj["usl"]) if msg_obj.get("usl") is not None else None,
+                    lsl=float(msg_obj["lsl"]) if msg_obj.get("lsl") is not None else None,
                 )
                 _explicit_intent = True
                 logger.info("Explicit intent from JSON message: %s", intent)

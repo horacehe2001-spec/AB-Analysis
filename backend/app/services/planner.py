@@ -6,6 +6,7 @@ import pandas as pd
 
 from app.services.engine.methods import (
     anova_oneway,
+    capability_analysis,
     chi_square,
     kruskal_wallis,
     linear_regression,
@@ -27,6 +28,8 @@ class Plan:
 
 def choose_plan(df: pd.DataFrame, intent: Intent) -> Plan:
     # explicit task hint
+    if intent.task == "capability":
+        return Plan(method="capability", params={"y": intent.y, "usl": intent.usl, "lsl": intent.lsl, "alpha": intent.alpha})
     if intent.task == "spc":
         return Plan(method="spc", params={"y": intent.y, "alpha": intent.alpha})
     if intent.task == "chi_square":
@@ -95,6 +98,8 @@ def run_plan(df: pd.DataFrame, plan: Plan):
         return chi_square(df, x=str(p["x"]), y=str(p["y"]), alpha=alpha)
     if method == "spc":
         return spc_control_chart(df, y=str(p["y"]), alpha=alpha)
+    if method == "capability":
+        return capability_analysis(df, y=str(p["y"]), usl=float(p["usl"]), lsl=float(p["lsl"]), alpha=alpha)
     if method == "auto_group_diff":
         # reuse engine default chooser for group/value by subsetting column choices
         group = p.get("group")

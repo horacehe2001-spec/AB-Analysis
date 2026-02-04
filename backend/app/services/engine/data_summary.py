@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 
@@ -27,11 +28,24 @@ def build_data_summary(df: pd.DataFrame) -> dict[str, Any]:
     df2 = df.copy()
     column_names = [str(c) for c in df2.columns.tolist()]
     col_types: dict[str, str] = {}
+    col_stats: dict[str, dict[str, float]] = {}
     for col in column_names:
         col_types[col] = infer_column_type(df2[col])
+        if col_types[col] == "number":
+            numeric = pd.to_numeric(df2[col], errors="coerce").dropna()
+            if len(numeric) > 0:
+                mean_val = float(np.mean(numeric))
+                std_val = float(np.std(numeric, ddof=1)) if len(numeric) > 1 else 0.0
+                col_stats[col] = {
+                    "mean": round(mean_val, 6),
+                    "std": round(std_val, 6),
+                    "min": round(float(np.min(numeric)), 6),
+                    "max": round(float(np.max(numeric)), 6),
+                }
     return {
         "rows": int(df2.shape[0]),
         "columns": int(df2.shape[1]),
         "column_names": column_names,
         "column_types": col_types,
+        "column_stats": col_stats,
     }

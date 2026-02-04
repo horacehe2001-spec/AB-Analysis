@@ -533,6 +533,166 @@ def spc_control_chart(df: pd.DataFrame, y: str, alpha: float = 0.05) -> EngineRe
     )
 
 
+def capability_analysis(
+    df: pd.DataFrame, y: str, usl: float, lsl: float, alpha: float = 0.05
+) -> EngineResult:
+    """流程能力分析：正态性检验 → Cp/Cpk/Pp/Ppk 计算 → 能力评估。"""
+    series = pd.to_numeric(df[y], errors="coerce").dropna()
+    if len(series) < 5:
+        raise ValueError(f"列 '{y}' 的有效数值不足 5 个，无法进行流程能力分析")
+
+    values = series.to_numpy(dtype=float)
+    n = len(values)
+    mean_val = float(np.mean(values))
+    std_overall = float(np.std(values, ddof=1))  # 总体标准差（长期）
+
+    # 组内标准差估算（短期），使用移动极差法
+    mr = np.abs(np.diff(values))
+    mr_bar = float(np.mean(mr)) if len(mr) > 0 else std_overall
+    d2 = 1.128  # d2 constant for subgroup size 2
+    std_within = mr_bar / d2 if mr_bar > 0 else std_overall
+
+    # 正态性检验
+    if n <= 5000:
+        _stat, _p = st.shapiro(values)
+        stat_val = float(_stat)
+        p_norm = float(_p)
+        norm_method = "Shapiro-Wilk"
+    else:
+        result_ad = st.anderson(values, dist="norm")
+        stat_val = float(result_ad.statistic)
+        critical = result_ad.critical_values[2] if len(result_ad.critical_values) > 2 else result_ad.critical_values[-1]
+        p_norm = 0.01 if stat_val > float(critical) else 0.10
+        norm_method = "Anderson-Darling"
+
+    is_normal = bool(p_norm > 0.05)
+
+    # Cp / Cpk（短期，基于组内标准差）
+    if std_within > 0:
+        cp = (usl - lsl) / (6 * std_within)
+        cpu = (usl - mean_val) / (3 * std_within)
+        cpl = (mean_val - lsl) / (3 * std_within)
+        cpk = min(cpu, cpl)
+    else:
+        cp = cpk = None
+
+    # Pp / Ppk（长期，基于总体标准差）
+    if std_overall > 0:
+        pp = (usl - lsl) / (6 * std_overall)
+        ppu = (usl - mean_val) / (3 * std_overall)
+        ppl = (mean_val - lsl) / (3 * std_overall)
+        ppk = min(ppu, ppl)
+    else:
+        pp = ppk = None
+
+    # 预估不良率 PPM
+    if std_overall > 0:
+        z_upper = (usl - mean_val) / std_overall
+        z_lower = (mean_val - lsl) / std_overall
+        ppm_upper = st.norm.sf(z_upper) * 1_000_000
+        ppm_lower = st.norm.sf(z_lower) * 1_000_000
+        ppm = ppm_upper + ppm_lower
+    else:
+        ppm = 0.0
+
+    # 能力等级
+    if cpk is not None:
+        if cpk >= 2.0:
+            grade, grade_label = "A", "优秀"
+        elif cpk >= 1.67:
+            grade, grade_label = "B", "良好"
+        elif cpk >= 1.33:
+            grade, grade_label = "C", "可接受"
+        elif cpk >= 1.0:
+            grade, grade_label = "D", "勉强，需改进"
+        else:
+            grade, grade_label = "F", "不合格，必须改进"
+    else:
+        grade, grade_label = "—", "无法评估"
+
+    # 构建直方图数据 + 规格限
+    hist_counts, bin_edges = np.histogram(values, bins="auto")
+    hist_data = []
+    for i in range(len(hist_counts)):
+        hist_data.append({
+            "bin_start": round(float(bin_edges[i]), 6),
+            "bin_end": round(float(bin_edges[i + 1]), 6),
+            "count": int(hist_counts[i]),
+        })
+
+    # 正态拟合曲线数据
+    x_range = np.linspace(float(np.min(values)) - 2 * std_overall, float(np.max(values)) + 2 * std_overall, 200)
+    y_pdf = st.norm.pdf(x_range, mean_val, std_overall)
+    normal_curve = [{"x": round(float(xv), 6), "y": round(float(yv), 8)} for xv, yv in zip(x_range, y_pdf)]
+
+    viz = [{
+        "type": "distribution",
+        "title": f"流程能力分析 — {y}",
+        "data": {
+            "histogram": hist_data,
+            "normal_curve": normal_curve,
+            "usl": round(usl, 6),
+            "lsl": round(lsl, 6),
+            "mean": round(mean_val, 6),
+            "std_dev": round(std_overall, 6),
+            "std_within": round(std_within, 6),
+            "sample_size": n,
+            "cp": round(cp, 4) if cp is not None else None,
+            "cpk": round(cpk, 4) if cpk is not None else None,
+            "pp": round(pp, 4) if pp is not None else None,
+            "ppk": round(ppk, 4) if ppk is not None else None,
+            "ppm": round(ppm, 2),
+            "normality_test": {
+                "method": norm_method,
+                "statistic": round(float(stat_val), 6),
+                "p_value": round(float(p_norm), 6),
+                "is_normal": is_normal,
+            },
+        },
+    }]
+
+    # 解读
+    norm_note = "数据服从正态分布" if is_normal else "数据不服从正态分布（结果仅供参考）"
+    interp = (
+        f"流程能力分析：{y}，{norm_note}。"
+        f"Cp={cp:.3f}，Cpk={cpk:.3f}，Pp={pp:.3f}，Ppk={ppk:.3f}。"
+        f"能力等级：{grade}（{grade_label}），预估不良率 {ppm:.1f} PPM。"
+        f"规格限 USL={usl}，LSL={lsl}，均值={mean_val:.4f}，标准差={std_overall:.4f}。"
+    ) if cp is not None and cpk is not None and pp is not None and ppk is not None else (
+        f"流程能力分析：{y}，标准差为零，无法计算能力指数。"
+    )
+
+    # 建议
+    suggestions: list[str] = []
+    if cpk is not None:
+        if cpk < 1.0:
+            suggestions.append("Cpk < 1.0，流程能力严重不足，需立即改进。建议排查关键影响因子并优化工艺参数。")
+            suggestions.append("考虑使用 DOE（实验设计）找到最优参数组合。")
+        elif cpk < 1.33:
+            suggestions.append("Cpk 在 1.0-1.33 之间，流程能力勉强达标。建议持续监控并逐步改进。")
+        elif cpk < 1.67:
+            suggestions.append("Cpk ≥ 1.33，流程能力可接受。建议继续保持并关注长期稳定性。")
+        else:
+            suggestions.append("Cpk ≥ 1.67，流程能力良好。建议定期复查以确保持续满足要求。")
+
+        if cp is not None and cpk < cp * 0.8:
+            suggestions.append(f"Cp={cp:.3f} 而 Cpk={cpk:.3f}，差距较大，说明流程中心偏移显著。建议调整流程均值使其更接近规格中心。")
+
+    if not is_normal:
+        suggestions.append("数据未通过正态性检验，Cp/Cpk 值可能不准确。建议考虑数据变换（如 Box-Cox）后重新分析。")
+
+    return EngineResult(
+        method="capability",
+        method_name="流程能力分析 Cp/Cpk",
+        p_value=None,
+        significant=cpk is not None and cpk < 1.33,
+        effect_size={"type": "cohens_d", "value": round(cpk, 4) if cpk is not None else 0.0, "level": grade_label},
+        interpretation=interp,
+        suggestions=suggestions,
+        visualizations=viz,
+    )
+
+
 def suggest_default_method(df: pd.DataFrame) -> tuple[str, dict[str, Any]]:
     numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
     cat_cols = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]

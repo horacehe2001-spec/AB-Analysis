@@ -34,6 +34,7 @@ def call_llm_json(
     provider = (config.provider or "").lower().strip()
     if not config.api_key:
         raise LLMError("Missing api_key")
+    api_key = config.api_key.strip()
     base_url = _strip_trailing_slash(config.base_url or "")
 
     # Default: OpenAI-compatible chat.completions
@@ -46,7 +47,7 @@ def call_llm_json(
             else:
                 base_url = "https://api.openai.com/v1"
         url = f"{base_url}/chat/completions"
-        headers = {"Authorization": f"Bearer {config.api_key}", "Content-Type": "application/json"}
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         payload = {
             "model": config.model,
             "temperature": float(config.temperature),
@@ -57,7 +58,7 @@ def call_llm_json(
                 {"role": "user", "content": user_prompt},
             ],
         }
-        with httpx.Client(timeout=90.0) as client:
+        with httpx.Client(timeout=httpx.Timeout(connect=30.0, read=300.0, write=30.0, pool=30.0)) as client:
             r = client.post(url, headers=headers, json=payload)
         if r.status_code >= 400:
             raise LLMError(f"LLM HTTP {r.status_code}: {r.text[:200]}")
@@ -73,7 +74,7 @@ def call_llm_json(
             base_url = "https://api.anthropic.com"
         url = f"{base_url}/v1/messages"
         headers = {
-            "x-api-key": config.api_key,
+            "x-api-key": api_key,
             "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
         }
@@ -85,7 +86,7 @@ def call_llm_json(
             "system": system_prompt,
             "messages": [{"role": "user", "content": user_prompt}],
         }
-        with httpx.Client(timeout=90.0) as client:
+        with httpx.Client(timeout=httpx.Timeout(connect=30.0, read=300.0, write=30.0, pool=30.0)) as client:
             r = client.post(url, headers=headers, json=payload)
         if r.status_code >= 400:
             raise LLMError(f"LLM HTTP {r.status_code}: {r.text[:200]}")
