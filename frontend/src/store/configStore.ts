@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ModelConfig, ModelProvider, PromptTemplates } from '../types/config';
+import type { TestConnectionResponse } from '../types/api';
 import { configApi } from '../api/config';
 
 interface ConfigStore {
@@ -19,7 +20,7 @@ interface ConfigStore {
   setTopP: (topP: number) => void;
   saveConfig: () => Promise<void>;
   loadConfig: () => Promise<void>;
-  testConnection: () => Promise<boolean>;
+  testConnection: () => Promise<TestConnectionResponse>;
   setPromptTemplate: (key: keyof PromptTemplates, value: string) => void;
   loadPrompts: () => Promise<void>;
   savePrompts: () => Promise<void>;
@@ -27,10 +28,10 @@ interface ConfigStore {
 }
 
 const DEFAULT_CONFIG: ModelConfig = {
-  provider: 'openai',
+  provider: 'zhipu',
   api_key: '',
-  base_url: '',
-  model: 'gpt-4-turbo',
+  base_url: 'https://open.bigmodel.cn/api/paas/v4',
+  model: 'GLM-4.7',
   temperature: 0.7,
   max_tokens: 4096,
   top_p: 1.0,
@@ -120,11 +121,11 @@ export const useConfigStore = create<ConfigStore>()(
             api_key: modelConfig.api_key,
             base_url: modelConfig.base_url,
           });
-          return response.success;
+          return response;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '连接测试失败';
           set({ error: errorMessage });
-          return false;
+          return { success: false, message: errorMessage };
         } finally {
           set({ isLoading: false });
         }

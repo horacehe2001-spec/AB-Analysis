@@ -25,7 +25,7 @@ export const MODEL_PROVIDERS: ProviderOption[] = [
   {
     value: 'zhipu',
     label: '智谱AI',
-    baseUrl: 'https://open.bigmodel.cn/api/paas'
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4'
   },
   {
     value: 'qwen',
@@ -51,6 +51,7 @@ export const MODELS: Record<ModelProvider, ModelOption[]> = {
     { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
   ],
   zhipu: [
+    { value: 'GLM-4.7', label: 'GLM-4.7' },
     { value: 'glm-4-plus', label: 'GLM-4 Plus' },
     { value: 'glm-4', label: 'GLM-4' },
     { value: 'glm-4-flash', label: 'GLM-4 Flash' },

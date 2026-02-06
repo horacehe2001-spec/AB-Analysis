@@ -18,8 +18,12 @@ def get_model(db: Session = Depends(get_db)) -> ModelConfig:
 
 
 @router.put("/model")
-def save_model(config: ModelConfig, db: Session = Depends(get_db)) -> None:
+def save_model(config: ModelConfig, db: Session = Depends(get_db)) -> dict:
     set_config(db, "model_config", config.model_dump())
+    # Read back to verify
+    saved = get_model_config(db)
+    has_key = bool(saved.get("api_key"))
+    return {"success": True, "message": "模型配置已保存", "api_key_saved": has_key}
 
 
 @router.post("/model/test", response_model=TestConnectionResponse)
@@ -83,5 +87,6 @@ def get_prompts(db: Session = Depends(get_db)) -> PromptTemplates:
 
 
 @router.put("/prompts")
-def save_prompts(templates: PromptTemplates, db: Session = Depends(get_db)) -> None:
+def save_prompts(templates: PromptTemplates, db: Session = Depends(get_db)) -> dict:
     set_config(db, "prompt_templates", templates.model_dump())
+    return {"success": True, "message": "Prompt 模板已保存"}

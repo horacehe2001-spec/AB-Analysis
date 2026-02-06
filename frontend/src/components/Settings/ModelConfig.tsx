@@ -12,6 +12,7 @@ import {
   MenuItem,
   Button,
   Alert,
+  Snackbar,
   ToggleButtonGroup,
   ToggleButton,
 } from '@mui/material';
@@ -36,7 +37,13 @@ const ModelConfig: React.FC = () => {
     resetToDefault,
   } = useConfigStore();
 
-  const [testResult, setTestResult] = React.useState<{ success: boolean; message: string } | null>(null);
+  const [snackbar, setSnackbar] = React.useState<{ open: boolean; severity: 'success' | 'error' | 'info'; message: string }>({
+    open: false, severity: 'info', message: '',
+  });
+
+  const showSnackbar = (severity: 'success' | 'error', message: string) => {
+    setSnackbar({ open: true, severity, message });
+  };
 
   const handleProviderChange = (_: React.MouseEvent, newProvider: ModelProvider | null) => {
     if (newProvider) {
@@ -50,30 +57,22 @@ const ModelConfig: React.FC = () => {
   };
 
   const handleTestConnection = async () => {
-    const success = await testConnection();
-    setTestResult({
-      success,
-      message: success ? '连接成功' : '连接失败',
-    });
+    const result = await testConnection();
+    showSnackbar(result.success ? 'success' : 'error', result.message);
   };
 
   const handleSave = async () => {
     try {
       await saveConfig();
-      alert('配置保存成功');
+      showSnackbar('success', '配置保存成功');
     } catch {
-      // Error is handled in store
+      showSnackbar('error', error || '保存配置失败');
     }
   };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {error && <Alert severity="error">{error}</Alert>}
-      {testResult && (
-        <Alert severity={testResult.success ? 'success' : 'error'}>
-          {testResult.message}
-        </Alert>
-      )}
 
       <Card>
         <CardContent>
@@ -187,6 +186,22 @@ const ModelConfig: React.FC = () => {
           保存配置
         </Button>
       </Box>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
